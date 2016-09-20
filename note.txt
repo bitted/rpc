@@ -1,0 +1,49 @@
+1、rpc-registry
+	a、提供服务注册服务接口
+		ServiceRegistry提供了zookeeper中服务的注册服务，通过创建ZkClient对象，注册需要的服务目录和创建临时的服务的属性ip+port，数据结构如下：
+		/**
+		 * zk中数据的实例：
+		 * [zk: localhost:2181(CONNECTED) 20] ls /registry/com.xxx.rpc.sample.api.HelloService
+		 * 
+		 * [address-0000000001]
+		 * 
+		 * ��t127.0.0.1:8001
+		 */
+	
+	b、提供服务发现服务接口
+		ServiceDiscovery提供了zookeeper中服务的发现服务，通过ZkClient对象，发现service对象包名对应的服务地址，如果只有一个微服务，那么直接返回该服务对应的ip和port就ok了，否者，返回几个微服务中的随机一个服务的ip和port就ok
+		，包名对应的服务地址如下：[zk: localhost:2181(CONNECTED) 43] ls /registry/com.xxx.rpc.sample.api.HelloService-sample.hello2   [address-0000000002, address-0000000003, address-0000000004]。
+
+2、rpc-registry-zookeeper
+	该项目实现了rpc依赖于zookeeper的服务对于项目微服务的注册和发现。
+
+3、rpc-common
+	a、RpcRequest：封装了rpc请求的body体。
+       RpcResponse：封装了rpc返回的响应消息体。
+    b、RpcDecoder：提供rpc的解码器。
+       RpcEncoder:提供rpc的编码器。
+    c、SerializationUtil：基于 Protostuff 实现了对象的序列化工具。
+    
+4、rpc-client
+	a、RpcClient：主要提供通过ip和port创建netty的tcp连接，发送RpcRequest请求数据到指定的服务地址，返回需要的RpcResponse对象给RpcProxy。
+	b、RpcProxy：通过动态代理获取servicename，使用ZooKeeperServiceDiscovery获取zk中存储的微服务的ip和port，然后使用ip+port构建需要RpcClient，发送请求的RpcRequest对象到微服务地址，返回需要的RpcResponse对象，
+	最后通过泛型传入的对象，返回外部接口方法对象给客户端。
+		其中RpcProxy中可以直接通过servicename返回消息body，也可以通过serviceName+serviceVersion不同版本的接口返回不同的消息body，适用用版本的不断迭代开发过程。
+		
+	这样就完成rpc整个调用过程！
+5、rpc-server
+	a、RpcServer:提供了rpc服务的发布，通过spring的注解，扫描包含RpcService注解的类并初始化，初始化rpc注解的服务到zk中，通过调用rpc-registry的服务，注册rpc服务。
+	b、创建并初始化 Netty 服务端 Bootstrap 对象的时候针对请求和响应对象添加解码和编码处理，同时设置处理业务handler，通过反射获取service的method和parameter，执行完后，封装到response返回给rpc的client端。
+	c、rpcserver处理业务是异步处理，
+6、rpc-sample-api
+	简单的bean类，定义了接口和辅助的model类，给客户端提供了接口声明。
+7、rpc-sample-client
+	a、rpc的客户端调用示例代码，模拟实现了rpc的客户端请求过程，通过RpcProxy获取RpcClient实例，调用send就可以通过netty的nio长连接通道发送消息到服务器，返回结果RpcResponse给客户端展示。
+	b、2，3，4分别演示了不同参数传递和多线程处理。
+8、rpc-sample-server
+	a、演示了RpcBootstrap启动rpc的server，然后server加载rpc的registry注册包含@RpcService的注解到zk中，暴露服务接口给客户端调用。
+	
+	
+	
+	
+	
